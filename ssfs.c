@@ -27,7 +27,32 @@ void cek_sub(char *s, char *sub, int p, int l) {
    sub[i] = '\0';
 }
 
-void writeInfo(char *text, char* path)
+void logFile(char* command, char* desc)
+{
+    char now[100];
+    char level[30];
+    time_t rawtime;
+    struct tm *info;
+    time(&rawtime);
+    info = localtime(&rawtime);
+    strftime(now, sizeof(now), "%y%m%d-%H:%M:%S::", info);
+    if(strcmp(command, "RMDIR") == 0 || strcmp(command, "UNLINK") == 0){
+        strcpy(level, "WARNING");
+    }
+    else{
+        strcpy(level, "INFO");
+    }
+    char logLine[200];
+    sprintf(logLine, "%s::%s%s::%s", level, now, command, desc);
+
+    FILE* fp;
+    fp = fopen("/home/hao/fs.log", "a");
+    fprintf(fp, "%s\n", logLine);
+    fclose(fp);
+}
+
+
+void Ffo(char *text, char* path)
 {
     char* info = "INFO";
 	char curtime[30];
@@ -36,7 +61,7 @@ void writeInfo(char *text, char* path)
 	strftime(curtime, 30, "%y%m%d-%H:%M:%S", p1);
     char log[1000];
     sprintf(log, "%s::%s::%s::%s", info, curtime, text, path);
-	FILE *out = fopen("/home/rofita/fs.log", "a");  
+	FILE *out = fopen("/home/hao/fs.log", "a");  
     fprintf(out, "%s\n", log);  
     fclose(out); 
     
@@ -51,7 +76,7 @@ void writeWarning(char *text, char* path)
 	strftime(curtime, 30, "%y%m%d-%H:%M:%S", p1);
     char log[1000];
     sprintf(log, "%s::%s::%s::%s", info, curtime, text, path);
-	FILE *out = fopen("/home/rofita/fs.log", "a");  
+	FILE *out = fopen("/home/hao/fs.log", "a");  
     fprintf(out, "%s\n", log);  
     fclose(out); 
 }
@@ -356,7 +381,8 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		}
 	}
 	closedir(dp);
-    writeInfo("CD", fpath);
+//    writeInfo("CD", fpath);
+//      logFile("CD", fpath);
 	return 0;
 }
 
@@ -374,7 +400,7 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 	else res = mknod(fpath, mode, rdev);
 	if (res == -1) return -errno;
 	
-    writeInfo("CREATE", fpath);
+    logFile("CREATE", fpath);
 	return 0;
 }
 
@@ -401,7 +427,7 @@ static int xmp_mkdir(const char *path, mode_t mode)
 	{
 		encrypt2(fpath, 1);
 	}
-	writeInfo("MKDIR", fpath);
+	logFile("MKDIR", fpath);
 	return 0;
 }
 
@@ -412,7 +438,7 @@ static int xmp_unlink(const char *path)
 	int res;
 
 	res = unlink(cekPath(fpath));
-    writeWarning("REMOVE", fpath);
+    	logFile("UNLINK", fpath);
 	if (res == -1) return -errno;
 	return 0;
 }
@@ -424,7 +450,7 @@ static int xmp_rmdir(const char *path)
 	int res;
 
 	res = rmdir(cekPath(fpath));
-    writeWarning("RMDIR", fpath);
+    logFile("RMDIR", fpath);
 	if (res == -1) return -errno;
 	return 0;
 }
@@ -488,7 +514,7 @@ static int xmp_rename(const char *from, const char *to)
 	else if(from1 == 1 && too == 2) encrypt2(fto, 1);
 	else if(from1 == 2 && too != 1) encrypt1(fto, -1);
 	else if(from1 == 2 && too == 2) encrypt2(fto, 1);
-	writeInfo("RENAME", from2);
+	logFile("RENAME", from2);
 
 	return 0;
 }
@@ -511,7 +537,7 @@ static int xmp_chmod(const char *path, mode_t mode)
 	int res;
 
 	res = chmod(cekPath(fpath), mode);
-	writeInfo("CHMOD", fpath);
+	logFile("CHMOD", fpath);
 	if (res == -1) return -errno;
 	return 0;
 }
@@ -523,7 +549,7 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 	int res;
 
 	res = lchown(cekPath(fpath), uid, gid);
-	writeInfo("CHOWN", fpath);
+	logFile("CHOWN", fpath);
 	if (res == -1) return -errno;
 	return 0;
 }
@@ -535,7 +561,7 @@ static int xmp_truncate(const char *path, off_t size)
 	int res;
 
 	res = truncate(cekPath(fpath), size);
-    writeInfo("TRUNCATE", fpath);
+    logFile("TRUNCATE", fpath);
 	if (res == -1) return -errno;
 	return 0;
 }
@@ -553,7 +579,7 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 	tv[1].tv_usec = ts[1].tv_nsec / 1000;
 
 	res = utimes(cekPath(fpath), tv);
-    writeInfo("UTIMENS", fpath);
+    logFile("UTIMENS", fpath);
 	if (res == -1) return -errno;
 	return 0;
 }
@@ -565,7 +591,7 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 	int res;
 
 	res = open(cekPath(fpath), fi->flags);
-    writeInfo("OPEN", fpath);
+    	logFile("OPEN", fpath);
 	if (res == -1) return -errno;
 	close(res);
 	return 0;
@@ -587,7 +613,7 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 	if (res == -1) res = -errno;
 	close(fd);
 	
-    writeInfo("CAT", fpath);
+    logFile("CAT", fpath);
 	return res;
 }
 
@@ -606,7 +632,7 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 	res = pwrite(fd, buf, size, offset);
 	if (res == -1) res = -errno;
 
-    writeInfo("WRITE", fpath);
+    logFile("WRITE", fpath);
 	close(fd);
 	return res;
 }
@@ -632,7 +658,7 @@ static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi)
     res = creat(cekPath(fpath), mode);
     if(res == -1) return -errno;
 	
-    writeInfo("CREAT", fpath);
+    logFile("CREAT", fpath);
     close(res);
     return 0;
 }
