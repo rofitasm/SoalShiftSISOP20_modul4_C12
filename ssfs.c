@@ -9,13 +9,17 @@
 #include<sys/time.h>
 #include<sys/stat.h>
 #include<sys/types.h>
+#include <libgen.h>
 #include<sys/wait.h>
 #include<stdbool.h>
 
-char dirpath[50] = "/home/hao/Documents/Praktikum4";
+char *dirpath = "/home/rofita/Documents";
 
 char ext[9999];
 int id = 0;
+
+int flag,flag1;
+char path_copy[1000];
 
 void cek_sub(char *s, char *sub, int p, int l) {
    int i = 0;
@@ -46,415 +50,457 @@ void logFile(char* command, char* desc)
     sprintf(logLine, "%s::%s%s::%s", level, now, command, desc);
 
     FILE* fp;
-    fp = fopen("/home/hao/fs.log", "a");
+    fp = fopen("/home/rofita/fs.log", "a");
     fprintf(fp, "%s\n", logLine);
     fclose(fp);
 }
 
 
-void Ffo(char *text, char* path)
-{
-    char* info = "INFO";
-	char curtime[30];
-    time_t t = time(NULL);
-    struct tm* p1 = localtime(&t);
-	strftime(curtime, 30, "%y%m%d-%H:%M:%S", p1);
-    char log[1000];
-    sprintf(log, "%s::%s::%s::%s", info, curtime, text, path);
-	FILE *out = fopen("/home/hao/fs.log", "a");  
-    fprintf(out, "%s\n", log);  
-    fclose(out); 
-    
+int key = 10; 
+
+
+void logEncv(const char arg1[], const char arg2[], int num_encv) {
+    time_t current_time;
+    time(&current_time);
+    struct tm *curr_time = localtime(&current_time);
+    char str[1000];
+
+    if(!strlen(arg2))
+        sprintf(str,"%02d%02d%02d-%02d:%02d:%02d::%s",
+            curr_time->tm_year % 100,
+            curr_time->tm_mon + 1,
+            curr_time->tm_mday,
+            curr_time->tm_hour,
+            curr_time->tm_min,
+            curr_time->tm_sec,
+            arg1
+        );
+    else
+        sprintf(str,"%02d%02d%02d-%02d:%02d:%02d::%s::%s",
+            curr_time->tm_year % 100,
+            curr_time->tm_mon,
+            curr_time->tm_mday,
+            curr_time->tm_hour,
+            curr_time->tm_min,
+            curr_time->tm_sec,
+            arg1,
+            arg2
+        );
+
+    FILE *log;
+    if(num_encv == 1)
+        log = fopen("/home/rofita/encv1.log","a");
+    else 
+        log = fopen("/home/rofita/encv2.log","a");
+    if(log == NULL) printf("Error");
+    fprintf(log, "%s\n", str);
+    fclose(log);
 }
 
-void writeWarning(char *text, char* path)
+void strip_ext(char *fname)
 {
-    char* info = "WARNING";
-    char curtime[30];
-    time_t t = time(NULL);
-    struct tm* p1 = localtime(&t);
-	strftime(curtime, 30, "%y%m%d-%H:%M:%S", p1);
-    char log[1000];
-    sprintf(log, "%s::%s::%s::%s", info, curtime, text, path);
-	FILE *out = fopen("/home/hao/fs.log", "a");  
-    fprintf(out, "%s\n", log);  
-    fclose(out); 
+    char *end = fname + strlen(fname);
+
+    while (end > fname && *end != '.') {
+        --end;
+    }
+
+    if (end > fname) {
+        *end = '\0';
+    }
 }
+
+const char *get_filename_ext(const char *filename) {
+    const char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+
+    return dot;
+}
+
+int isDirectory(const char *path) {
+   struct stat statbuf;
+   if (stat(path, &statbuf) != 0)
+       return 0;
+   return S_ISDIR(statbuf.st_mode);
+}
+
+void encryptcv1(const char* str, char *res) {
 
 char cis[] = "9(ku@AW1[Lmvgax6q`5Y2Ry?+sF!^HKQiBXCUSe&0M.b%rI'7d)o4~VfZ*{#:}ETt$3J-zpc]lnh8,GwP_ND|jO";
-int key = 10;
+int lenCis = strlen(cis);
+    int length_str = strlen(str);
+    int i,j;
+    int key2 = key % lenCis;
 
-char *encrypt(char* str, bool cek)
-{
-	int i, j, k = 0;
-	char *ext = strrchr(str, '.');
-	if(cek && ext != NULL) k = strlen(ext);
-	for(i = 0; i < strlen(str) - k; i++)
-	{
-		for(j = 0; j < strlen(cis); j++)
-		{
-			if(str[i] == cis[j]){
-				str[i] = cis[(j + key) % 87];
-				break;
-			}
-		}
-	}
-	return str;
-}
-
-char *decrypt(char* str, bool cek)
-{
-	int i, j, k = 0;
-	char *ext = strrchr(str, '.');
-	if(cek && ext != NULL) k = strlen(ext);
-	for(i = 0; i < strlen(str) - k; i++)
-	{
-		for(j = 0; j < 87; j++)
-		{
-			if(str[i] == cis[j]){
-				str[i] = cis[(j + 87 - key) % 87];
-				break;
-			}
-		}
-	}
-	return str;
-}
-
-char *lastSub(char *str)
-{
-	if(!strcmp(str, "/")) return NULL;
-	return strrchr(str, '/') + 1;
-}
-
-char *cekPath(char *str)
-{
-	bool encr;
-	int start, id;
-	encr = 0; start = 1; 
-	id = strchr(str + start, '/') - str - 1;
-	char curpos[1024];
-	while(id < strlen(str))
-	{
-		strcpy(curpos, "");
-		strncpy(curpos, str + start, id - start + 1);
-		curpos[id - start + 1] = '\0';
-		if(encr)
-		{
-			encrypt(curpos, 0);
-			strncpy(str + start, curpos, id - start + 1);
-		}
-		if(!encr && strstr(str + start, "encv1_") == str + start) encr = 1;
-		start = id + 2;
-		id = strchr(str + start, '/') - str - 1;
-	}
-	id = strlen(str); id--;
-	strncpy(curpos, str + start, id - start + 1);
-	curpos[id - start + 1] = '\0';
-	if(encr)
-	{
-		encrypt(curpos, 1);
-		strncpy(str + start, curpos, id - start + 1);
-	}
-	return str;
-}
-
-char *catPath(char *fin, char *str1, const char *str2)
-{
-	strcpy(fin, str1);
-	if(!strcmp(str2, "/")) return fin;
-	if(str2[0] != '/')
-	{
-		fin[strlen(fin) + 1] = '\0';
-		fin[strlen(fin)] = '/';
-	}
-	sprintf(fin, "%s%s", fin, str2);
-	return fin;
-}
-
-void split(char *str)
-{
-	char finalPath[10000000];
-	sprintf(finalPath, "%s.", str);
-	pid_t cid;
-	cid = fork();
-	if(cid == 0)
-	{
-		char *argv[] = {"split", "-b", "1024", "-d", "-a", "3", str, finalPath, NULL};
-		execv("/usr/bin/split", argv);
-	}
-	int status;
-	while(wait(&status) > 0);
-	unlink(str);
-}
-
-void combine(char *str)
-{
-	char buff[2048];
-	int id = 0;
-	char *ext = str + strlen(str) - 4;
-	if(strcmp(ext, ".000")) return;
-	ext[0] = '\0';
-	FILE *combined;
-	combined = fopen(str, "wb");
-	while(1)
-	{
-		char name[1000000];
-		sprintf(name, "%s.%03d", str, id);
-		FILE *each;
-		each = fopen(name, "rb");
-		if(!each) break;
-		fseek(each, 0L, SEEK_END);
-		rewind(each);
-		fread(buff, sizeof(buff), ftell(each), each);
-		fwrite(buff, sizeof(buff), ftell(each), combined);
-		fclose(each);
-		unlink(name);
-		id++;
-	}
-	fclose(combined);
-}
-
-int encrFolder(char *str)
-{
-	int ans;
-	char *fi = strtok(str, "/");
-	ans = 0;
-	while(fi)
-	{
-		char sub[1024];
-		cek_sub(fi, sub, 0, 6);
-		if(!strcmp(sub, "encv1_")) ans |= 1;
-		else if(!strcmp(sub, "encv2_")) ans |= 2;
-		fi = strtok(NULL, "/");
-	}
-	return ans;
-}
-
-int encrFull(char *str)
-{
-	int ans;
-	char *fi = strtok(str, "/");
-	char *sc = strtok(NULL, "/");
-	ans = 0;
-	while(sc)
-	{
-		char sub[1024];
-		cek_sub(fi, sub, 0, 6);
-		if(!strcmp(sub, "encv1_")) ans |= 1;
-		else if(!strcmp(sub, "encv2_")) ans |= 2;
-		fi = sc;
-		sc = strtok(NULL, "/");
-	}
-	return ans;
-}
-
-void whileEnc1(char *str, int flag)
-{
-	struct dirent *dp;
-	DIR *dir = opendir(str);
-	
-	if(!dir) return;
-	
-	while((dp = readdir(dir)) != NULL)
-	{
-		if(strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0)
+    for (i = 0; i < length_str; i++)
+    {
+        for ( j = 0; j < lenCis; j++)
         {
-        	char path[2000000], name[1000000], newname[1000000];
-        	catPath(path, str, dp->d_name);
-			strcpy(name, dp->d_name);
-			if(flag == 1) catPath(newname, str, encrypt(name, 1));
-			else if(flag == -1) catPath(newname, str, decrypt(name, 1));
-			if(dp->d_type == DT_REG) rename(path, newname);
-			else if(dp->d_type == DT_DIR)
-			{
-				rename(path, newname);
-				whileEnc1(newname, flag);
-			}
+            if(str[i] == cis[j]) {
+                res[i] = cis[(j+key2) % lenCis];
+                break;
+            }   
         }
-	}
+    }
 }
 
-void encrypt1(char *str, int flag)
-{
-	struct stat add;
-	stat(str, &add);
-	if(!S_ISDIR(add.st_mode)) return;
-	whileEnc1(str, flag);
-}
+void decryptcv1(const char* str, char *res) {
+char cis[] = "9(ku@AW1[Lmvgax6q`5Y2Ry?+sF!^HKQiBXCUSe&0M.b%rI'7d)o4~VfZ*{#:}ETt$3J-zpc]lnh8,GwP_ND|jO";
+int lenCis = strlen(cis);
+    int length_str = strlen(str);
+    int i,j;
+    int key2 = key % lenCis;
+    
+    char temp[1000];
+    strcpy(temp,str);
 
-void whileEnc2(char *str, int flag)
-{
-	struct dirent *dp;
-	DIR *dir = opendir(str);
-	
-	if(!dir) return;
-	
-	while((dp = readdir(dir)) != NULL)
-	{
-		if(strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0)
+    for (i = 0; i < length_str; i++)
+    {
+        for ( j = 0; j < lenCis; j++)
         {
-			char path[2000000];
-        	catPath(path, str, dp->d_name);
-			if(dp->d_type == DT_DIR) whileEnc2(path, flag);
-			else if(dp->d_type == DT_REG)
-			{
-				if(flag == 1) split(path);
-				if(flag == -1) combine(path);
-			}
+            if(temp[i] == cis[j]) {
+                res[i] = cis[(j >= key2)? j-key2:lenCis-(key2-j)];
+                break;
+            }   
         }
-	}
+    }
 }
 
-void encrypt2(char *str, int flag)
+void traceRecursively(const char *name, int encrypt)
 {
-	struct stat add;
-	stat(str, &add);
-	if(!S_ISDIR(add.st_mode)) return;
-	whileEnc2(str, flag);
+    DIR *dir;
+    struct dirent *entry;
+
+    if (!(dir = opendir(name)))
+        return;
+
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            char path[1024];
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+            snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+            traceRecursively(path, encrypt);
+            
+            char res[1000],to[1000];
+
+            memset(res, 0, sizeof(res));
+            memset(to, 0, sizeof(res));
+
+            if(encrypt) {
+                encryptcv1(entry->d_name, res);
+            }else{
+                decryptcv1(entry->d_name, res);
+            }
+            snprintf(to, sizeof(to),"%s/%s", name, res);
+            rename(path, to);
+        } else {
+            char res[1000], to[2000], path[1024],filename[100],ext[100];
+            
+            memset(res, 0, sizeof(res));
+            memset(to, 0, sizeof(res));
+
+            snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+
+            strcpy(filename, entry->d_name);
+            strcpy(ext, get_filename_ext(filename));
+            strip_ext(filename);
+
+            if(encrypt) {
+                encryptcv1(filename, res);
+            }else{
+                decryptcv1(filename, res);
+            }
+            snprintf(to, sizeof(to),"%s/%s", name, res);
+
+            if(strlen(ext) > 0)
+                strcat(to, ext);
+            
+            rename(path, to);
+        }
+    }
+    closedir(dir);
 }
 
-static int xmp_getattr(const char *path, struct stat *stbuf)
+void substring(char s[], char sub[], int p, int l) {
+   int c = 0;
+   
+   while (c < l) {
+      sub[c] = s[p+c-1];
+      c++;
+   }
+   sub[c] = '\0';
+}
+
+
+
+static  int  xmp_getattr(const char *path, struct stat *stbuf)
 {
-	int res;
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
-	res = lstat(cekPath(fpath), stbuf);
-	if (res == -1) return -errno;
-	return 0;
-}
+    int res;
+    char fpath[1000];
+    sprintf(fpath,"%s%s",dirpath,path);
 
-static int xmp_access(const char *path, int mask)
+    logFile("LS", fpath);
+
+    if(flag1){
+        memset(path_copy,0,sizeof(path_copy));
+        strcpy(path_copy, fpath);
+        flag1 = 0;
+    }
+    res = lstat(fpath, stbuf);
+    if (res == -1)
+        return -errno;
+
+
+    if(flag && !flag1) {
+        char res[1000], pathh[1024],filename[100],ext[100], name[1000], to[1000];
+        memset(filename,0,sizeof(filename));
+        memset(ext, 0, sizeof(ext));
+        strcpy(filename, basename(path_copy));
+        if(flag == 2) {
+            strcpy(ext, get_filename_ext(filename));
+            strip_ext(filename);
+        }
+        strcpy(name, dirname(path_copy));
+
+        snprintf(pathh, sizeof(pathh), "%s/%s", name, filename);
+
+        encryptcv1(filename, res);
+
+        res[strlen(filename)] = '\0';
+        if(strlen(ext) > 0)
+            strcat(res, ext);
+
+        memset(to, 0, sizeof(to));
+        snprintf(to, sizeof(to),"%s/%s", name, res);
+
+        rename(pathh, to);
+
+        flag = 0;
+    }
+
+
+    return 0;
+}  
+
+static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
 {
-	int res;
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
-	res = access(cekPath(fpath), mask);
-	if (res == -1) return -errno;
-	return 0;
+    char fpath[1000];
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
+    int res = 0;
+
+    DIR *dp;
+    struct dirent *de;  
+
+    (void) offset;
+    (void) fi;
+
+    logFile("READDIR", fpath);
+
+    dp = opendir(fpath);
+    if (dp == NULL)
+        return -errno;
+
+    while ((de = readdir(dp)) != NULL) {
+        struct stat st;
+        memset(&st, 0, sizeof(st));
+        st.st_ino = de->d_ino;
+        st.st_mode = de->d_type << 12;
+        res = (filler(buf, de->d_name, &st, 0));
+        if(res!=0) break;
+
+    }
+
+    closedir(dp);
+    return 0;
 }
 
-static int xmp_readlink(const char *path, char *buf, size_t size)
-{
-	int res;
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
-	res = readlink(cekPath(fpath), buf, size - 1);
-	if (res == -1) return -errno;
-	buf[res] = '\0';
-	return 0;
-}
-
-
-static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-		       off_t offset, struct fuse_file_info *fi)
-{
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
-	int res = 0;
-	
-	DIR *dp;
-	struct dirent *de;
-	(void) offset;
-	(void) fi;
-	dp = opendir(cekPath(fpath));
-	if (dp == NULL) return -errno;
-	
-	int flag = encrFolder(fpath);
-	while ((de = readdir(dp)) != NULL) {
-		struct stat st;
-		memset(&st, 0, sizeof(st));
-		st.st_ino = de->d_ino;		
-		st.st_mode = de->d_type << 12;
-		char nama[1000000];
-		strcpy(nama, de->d_name);
-		if(flag == 1)
-		{
-			if(de->d_type == DT_REG) decrypt(nama, 1);
-			else if(de->d_type == DT_DIR && strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) decrypt(nama, 0);
-			res = (filler(buf, nama, &st, 0));
-			if(res!=0) break;
-		}
-		else
-		{
-			res = (filler(buf, nama, &st, 0));
-			if(res!=0) break;
-		}
-	}
-	closedir(dp);
-//    writeInfo("CD", fpath);
-//      logFile("CD", fpath);
-	return 0;
-}
 
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
-	cekPath(fpath);
 	int res;
-	
+
+    char fpath[1000];
+
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
+    int local_flag = 0;
+
+    char fpath_copy[1000], dir[1000], dir_name[1000];
+    strcpy(fpath_copy, fpath);
+
+    do
+    {
+        strcpy(dir, dirname(fpath_copy));
+
+        if(strlen(dir) > 2){
+            strcpy(dir_name, basename(dir));
+
+            if(strlen(dir_name) >= 6 ) {
+                dir_name[6] = '\0';
+
+                if(!strcmp(dir_name, "encv1_")) {
+                    local_flag = 2;
+                    break;
+                }
+            }
+        }
+    } while (strlen(dir) > 1);
+    
+    if(flag) {
+            char res[1000], to[1000], path[1024],filename[100],ext[100], name[1000];
+            strcpy(name, dirname(fpath_copy));
+            strcpy(filename, basename(fpath_copy));
+            snprintf(path, sizeof(path), "%s/%s", name, filename);
+
+            strcpy(ext, get_filename_ext(filename));
+            strip_ext(filename);
+
+            encryptcv1(filename, res);
+            snprintf(to, sizeof(to),"%s/%s", name, res);
+
+            if(strlen(ext) > 0)
+                snprintf(fpath, sizeof(fpath), "%s.%s", to, ext);
+    }
+
+    logFile("CREATE", fpath);
+	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
+	   is more portable */
 	if (S_ISREG(mode)) {
 		res = open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode);
-		if (res >= 0) res = close(res);
-	} else if (S_ISFIFO(mode)) res = mkfifo(fpath, mode);
-	else res = mknod(fpath, mode, rdev);
-	if (res == -1) return -errno;
-	
-    logFile("CREATE", fpath);
+		if (res >= 0)
+			res = close(res);
+	} else if (S_ISFIFO(mode))
+		res = mkfifo(fpath, mode);
+	else
+		res = mknod(fpath, mode, rdev);
+	if (res == -1)
+		return -errno;
+
+    flag = flag1 = local_flag;
+
 	return 0;
 }
 
+
 static int xmp_mkdir(const char *path, mode_t mode)
 {
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
-	
 	int res;
 
-	res = mkdir(cekPath(fpath), mode);
-	if (res == -1) return -errno;
-	
-    char cek_substr[1024];
-    if(lastSub(fpath) == 0) return 0;
-    char filePath[1000000];
-    strcpy(filePath, lastSub(fpath));
-    cek_sub(filePath, cek_substr, 0, 6);
-	if(strcmp(cek_substr, "encv1_") == 0) //folder encrypt1
-	{
-		encrypt1(fpath, 1);	
-	}
-	else if(strcmp(cek_substr, "encv2_") == 0) //folder encrypt2
-	{
-		encrypt2(fpath, 1);
-	}
-	logFile("MKDIR", fpath);
+    char fpath[1000];
+
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
+    int local_flag = 0;
+
+    char fpath_copy[1000], dir[1000], dir_name[1000];
+    strcpy(fpath_copy, fpath);
+
+    if(strlen(basename(path)) >= 6) {
+        char sub[1000];
+        substring(basename(path), sub, 1, 6);
+        if(strcmp(sub, "encv1_") == 0) {
+            logEncv(fpath,"",1);
+        }
+    }
+
+    if(strlen(basename(path)) >= 6) {
+        char sub[1000];
+        substring(basename(path), sub, 1, 6);
+        if(strcmp(sub, "encv2_") == 0) {
+            logEncv(fpath,"",2);
+        }
+    }
+
+    do
+    {
+        strcpy(dir, dirname(fpath_copy));
+
+        if(strlen(dir) > 2){
+            strcpy(dir_name, basename(dir));
+
+            if(strlen(dir_name) >= 6 ) {
+                dir_name[6] = '\0';
+
+                if(!strcmp(dir_name, "encv1_")) {
+                    local_flag = 1;
+                    break;
+                }
+            }
+        }
+    } while (strlen(dir) > 1);
+
+    logFile("MKDIR", fpath);
+
+	res = mkdir(fpath, mode);
+	if (res == -1)
+		return -errno;
+
+    flag = flag1 = local_flag;
+    
 	return 0;
 }
 
 static int xmp_unlink(const char *path)
 {
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
 	int res;
 
-	res = unlink(cekPath(fpath));
-    	logFile("UNLINK", fpath);
-	if (res == -1) return -errno;
+    char fpath[1000];
+
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
+    logFile("UNLINK", fpath);
+
+	res = unlink(fpath);
+	if (res == -1)
+		return -errno;
+
 	return 0;
 }
 
 static int xmp_rmdir(const char *path)
 {
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
 	int res;
 
-	res = rmdir(cekPath(fpath));
+    char fpath[1000];
+
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
     logFile("RMDIR", fpath);
-	if (res == -1) return -errno;
+
+	res = rmdir(fpath);
+	if (res == -1)
+		return -errno;
+
 	return 0;
 }
-
 static int xmp_symlink(const char *from, const char *to)
 {
 	int res;
@@ -467,130 +513,142 @@ static int xmp_symlink(const char *from, const char *to)
 }
 
 static int xmp_rename(const char *from, const char *to)
-{    
-    char from2[1000];
-	catPath(from2, dirpath, from);
-	
-    char fto[1000];
-	catPath(fto, dirpath, to);
-	
-	int res;
-
-	res = rename(cekPath(from2), cekPath(fto));
-	
-	if (res == -1)
-		return -errno;
-	
-	int from1 = 0, too = 0;
-	char cek_substr[1024], cek2[1024];
-    if(lastSub(from2) == 0) return 0;
-    char filePath[1000000];
-    strcpy(filePath, lastSub(from2));
-    cek_sub(filePath, cek_substr, 0, 6);
-	if(strcmp(cek_substr, "encv1_") == 0) //folder encrypt1
-	{
-		from1 = 1;
-	}
-	else if(strcmp(cek_substr, "encv2_") == 0) //folder encrypt2
-	{
-		from1 = 2;
-	}
-	
-    if(lastSub(fto) == 0) return 0;
-    strcpy(filePath, lastSub(fto));
-    cek_sub(filePath, cek_substr, 0, 6);
-	if(strcmp(cek2, "encv1_") == 0) //folder decrypt1
-	{
-		too = 1;
-	}
-	else if(strcmp(cek2, "encv2_") == 0) //folder decrypt2
-	{
-		too = 2;
-	}
-	
-	if(from1 == 0 && too == 1) encrypt1(fto, 1);
-	else if(from1 == 0 && too == 2) encrypt2(fto, 1);
-	else if(from1 == 1 && too != 1) encrypt1(fto, -1);
-	else if(from1 == 1 && too == 2) encrypt2(fto, 1);
-	else if(from1 == 2 && too != 1) encrypt1(fto, -1);
-	else if(from1 == 2 && too == 2) encrypt2(fto, 1);
-	logFile("RENAME", from2);
-
-	return 0;
-}
-
-static int xmp_link(const char *from, const char *to)
 {
 	int res;
+    char ffrom[1000];
+    char fto[1000];
 
-	res = link(from, to);
+    if(strcmp(from,"/") == 0)
+    {
+        from=dirpath;
+        sprintf(ffrom,"%s",from);
+    }
+    else sprintf(ffrom, "%s%s",dirpath,from);
+
+    if(strcmp(to,"/") == 0)
+    {
+        to=dirpath;
+        sprintf(fto,"%s",to);
+    }
+    else sprintf(fto, "%s%s",dirpath,to);
+
+    logFile("RENAME", ffrom);
+
+    if(strlen(basename(fto)) >= 6) {
+        char sub[1000];
+        substring(basename(fto), sub, 1, 6);
+        if(strcmp(sub, "encv1_") == 0) {
+            traceRecursively(ffrom,1);
+            logEncv(ffrom,fto,1);
+        }
+    }
+
+    if(strlen(basename(fto)) >= 6) {
+        char sub[1000];
+        substring(basename(fto), sub, 1, 6);
+        if(strcmp(sub, "encv2_") == 0) {
+            traceRecursively(ffrom,1);
+            logEncv(ffrom,fto,2);
+        }
+    }
+
+    if(strlen(basename(ffrom)) >= 6) {
+        char sub[1000],sub2[1000];
+        substring(basename(ffrom), sub, 1, 6);
+        substring(basename(fto), sub2, 1, 6);
+        if(!strcmp(sub, "encv1_") && strcmp(sub2, "encv1_"))
+            traceRecursively(ffrom,0);
+    }
+    
+	res = rename(ffrom, fto);
 	if (res == -1)
 		return -errno;
 
 	return 0;
-}
+}	
 
 static int xmp_chmod(const char *path, mode_t mode)
 {
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
 	int res;
 
-	res = chmod(cekPath(fpath), mode);
-	logFile("CHMOD", fpath);
-	if (res == -1) return -errno;
+    char fpath[1000];
+
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
+   	logFile("CHMOD", fpath);
+
+	res = chmod(fpath, mode);
+	if (res == -1)
+		return -errno;
+
 	return 0;
 }
 
 static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 {
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
 	int res;
 
-	res = lchown(cekPath(fpath), uid, gid);
-	logFile("CHOWN", fpath);
-	if (res == -1) return -errno;
+    char fpath[1000];
+
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
+   	logFile("CHOWN", fpath);
+
+
+	res = lchown(fpath, uid, gid);
+	if (res == -1)
+		return -errno;
+
 	return 0;
 }
 
 static int xmp_truncate(const char *path, off_t size)
 {
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
 	int res;
 
-	res = truncate(cekPath(fpath), size);
+    char fpath[1000];
+
+    if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
     logFile("TRUNCATE", fpath);
-	if (res == -1) return -errno;
+
+	res = truncate(fpath, size);
+	if (res == -1)
+		return -errno;
+
 	return 0;
 }
 
-static int xmp_utimens(const char *path, const struct timespec ts[2])
-{
-	char fpath[1000];
-	catPath(fpath, dirpath, path);
-	int res;
-	struct timeval tv[2];
-
-	tv[0].tv_sec = ts[0].tv_sec;
-	tv[0].tv_usec = ts[0].tv_nsec / 1000;
-	tv[1].tv_sec = ts[1].tv_sec;
-	tv[1].tv_usec = ts[1].tv_nsec / 1000;
-
-	res = utimes(cekPath(fpath), tv);
-    logFile("UTIMENS", fpath);
-	if (res == -1) return -errno;
-	return 0;
-}
 
 static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
 	char fpath[1000];
-	catPath(fpath, dirpath, path);
 	int res;
 
-	res = open(cekPath(fpath), fi->flags);
+	if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
+
+	res = open(fpath, fi->flags);
     	logFile("OPEN", fpath);
 	if (res == -1) return -errno;
 	close(res);
@@ -601,19 +659,26 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
 	char fpath[1000];
-	catPath(fpath, dirpath, path);
+	
+	if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
 	int fd = 0;
 	int res = 0;
 
 	(void) fi;
-	fd = open(cekPath(fpath), O_RDONLY);
+	fd = open(fpath, O_RDONLY);
 	if (fd == -1) return -errno;
 
 	res = pread(fd, buf, size, offset);
 	if (res == -1) res = -errno;
 	close(fd);
 	
-    logFile("CAT", fpath);
+    logFile("READ", fpath);
 	return res;
 }
 
@@ -621,12 +686,19 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
 	char fpath[1000];
-	catPath(fpath, dirpath, path);
+
+	if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
 	int fd;
 	int res;
 
 	(void) fi;
-	fd = open(cekPath(fpath), O_WRONLY);
+	fd = open(fpath, O_WRONLY);
 	if (fd == -1) return -errno;
 
 	res = pwrite(fd, buf, size, offset);
@@ -640,10 +712,16 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
 {
 	char fpath[1000];
-	catPath(fpath, dirpath, path);
+	if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
+
 	int res;
 
-	res = statvfs(cekPath(fpath), stbuf);
+	res = statvfs(fpath, stbuf);
 	if (res == -1) return -errno;
 	return 0;
 }
@@ -651,11 +729,16 @@ static int xmp_statfs(const char *path, struct statvfs *stbuf)
 static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi) 
 {
 	char fpath[1000];
-	catPath(fpath, dirpath, path);
+	if(strcmp(path,"/") == 0)
+    {
+        path=dirpath;
+        sprintf(fpath,"%s",path);
+    }
+    else sprintf(fpath, "%s%s",dirpath,path);
     (void) fi;
 
     int res;
-    res = creat(cekPath(fpath), mode);
+    res = creat(fpath, mode);
     if(res == -1) return -errno;
 	
     logFile("CREAT", fpath);
@@ -664,27 +747,8 @@ static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 }
 
 
-static int xmp_release(const char *path, struct fuse_file_info *fi)
-{
-	(void) path;
-	(void) fi;
-	return 0;
-}
-
-static int xmp_fsync(const char *path, int isdatasync,
-		     struct fuse_file_info *fi)
-{
-	(void) path;
-	(void) isdatasync;
-	(void) fi;
-	return 0;
-}
-
-
 static struct fuse_operations xmp_oper = {
 	.getattr	= xmp_getattr,
-	.access		= xmp_access,
-	.readlink	= xmp_readlink,
 	.readdir	= xmp_readdir,
 	.mknod		= xmp_mknod,
 	.mkdir		= xmp_mkdir,
@@ -692,18 +756,14 @@ static struct fuse_operations xmp_oper = {
 	.unlink		= xmp_unlink,
 	.rmdir		= xmp_rmdir,
 	.rename		= xmp_rename,
-	.link		= xmp_link,
 	.chmod		= xmp_chmod,
 	.chown		= xmp_chown,
 	.truncate	= xmp_truncate,
-	.utimens	= xmp_utimens,
 	.open		= xmp_open,
 	.read		= xmp_read,
 	.write		= xmp_write,
 	.statfs		= xmp_statfs,
-	.create     = xmp_create,
-	.release	= xmp_release,
-	.fsync		= xmp_fsync,
+	.create     = xmp_create
 };
 
 int main(int argc, char *argv[])
