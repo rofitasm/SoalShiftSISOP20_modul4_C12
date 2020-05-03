@@ -2,7 +2,40 @@
 1. 18-0034 Rofita Siti Musdalifah
 2. 18-0086 Calvin Wijaya
 # Soal 1
+Diperintahkan melakukan enkripsi ke file-file atau folder yang berada di dalamnya. Enkripsi ini dilakukan dengan melakukan enkripsi nama dari file-file atau direktori nya dengan metode caesar cipher dengan key 
+```9ku@AW1[Lmvgax6q`5Y2Ry?+sF!^HKQiBXCUSe&0M.b%rI'7d)o4~VfZ*{#:}ETt$3J-zpc]lnh8,GwP_ND|jO```
+
+Fungsi yang dipakai di No 1 antara lain:
+- Fungsi enc1
+Fungsi ini digunakan untuk enkripsi string sesuai jenis enkripsinya
+- Fungsi dec1
+Fungsi ini dipakai untuk melakukan dekripsi dari string yang telaj terenkripsi
+- Fungsi logEncv
+Fungsi ini digunakan untuk log pembuatan folder enkripsi
+- Fungsi cut_ext
+Fungsi untuk menghilangkan ekstensi dari filename
+- Fungsi get_ext
+Fungsi untuk mendapat ekstensi dari filename
+- Fungsi loopDir1
+Fungsi untuk melakukan enkripsi atau dekripsi secara rekursif
+- Fungsi Substring
+Fungsi untuk mendapat substring dari suatu string
+
+Lalu beberapa fungsi fuse yang di modifikasi diantaranya :
+- Fungsi xmp_getattr
+Menambahkan rename file atau folder jika dibuat didalam folder enkripsi
+- Fungsi xmp_rename
+Menambahkan apabila membuat folder enkripsi dengan rename
+- Fungsi xmp_mkdir
+Melacak apabila directory dibuat dibawah directory enkripsi
+- Fungsi xmp_mknod
+Melacak apakah file dibuat di bawah directory enkripsi
+
 # Soal 2
+Diminta cara pendeteksian nama folder dan rekursi sama. Bedanya, untuk setiap file dilakukan `split` agar file terpecah-pecah menjadi ukuran 1024 byte masing-masingnya.
+Agar file dapat terbaca dengan normal, pertama fungsi `readdir()` implementasi FUSE perlu diubah agar file-file dengan format nama terpecah tidak terbaca. Sebaliknya, fungsi tersebut akan mengembalikan hanya satu file saja.  
+
+Kemudian, pada implementasi fungsi `read()` diubah sehingga setiap pembacaan file dilakukan looping untuk membaca semua file-file pecahannya, dan dioutputkan ke buffer sebagai satu file
 # Soal 3
 ```awk
 static int xmp_fsyncdir(const char *path, int isdatasync, struct fuse_file_info *fi) {
