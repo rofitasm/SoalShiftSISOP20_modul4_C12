@@ -20,6 +20,7 @@ char path_copy[1000];
 int key = 10;
 
 
+
 void logEnc(const char arg1[], const char arg2[], int num_encv) {
     time_t current_time;
     time(&current_time);
@@ -27,9 +28,26 @@ void logEnc(const char arg1[], const char arg2[], int num_encv) {
     char str[1000];
 
     if(!strlen(arg2))
-        sprintf(str,"%02d%02d%02d-%02d:%02d:%02d::%s",curr_time->tm_year % 100,curr_time->tm_mon + 1,curr_time->tm_mday,curr_time->tm_hour,curr_time->tm_min,curr_time->tm_sec,arg1);
+        sprintf(str,"%02d%02d%02d-%02d:%02d:%02d::%s",
+            curr_time->tm_year % 100,
+            curr_time->tm_mon + 1,
+            curr_time->tm_mday,
+            curr_time->tm_hour,
+            curr_time->tm_min,
+            curr_time->tm_sec,
+            arg1
+        );
     else
-        sprintf(str,"%02d%02d%02d-%02d:%02d:%02d::%s::%s",curr_time->tm_year % 100,curr_time->tm_mon,curr_time->tm_mday,curr_time->tm_hour,curr_time->tm_min,curr_time->tm_sec,arg1,arg2);
+        sprintf(str,"%02d%02d%02d-%02d:%02d:%02d::%s::%s",
+            curr_time->tm_year % 100,
+            curr_time->tm_mon,
+            curr_time->tm_mday,
+            curr_time->tm_hour,
+            curr_time->tm_min,
+            curr_time->tm_sec,
+            arg1,
+            arg2
+        );
     FILE *log;
     if(num_encv == 1)
         log = fopen("/home/rofita/encv1.log","a");
@@ -108,7 +126,7 @@ void dec1(const char* str, char *res) {
     }
 }
 
-void loopDir(const char *name, int encrypt)
+void loopDir1(const char *name, int encrypt)
 {
     DIR *dir;
     struct dirent *entry;
@@ -123,7 +141,7 @@ void loopDir(const char *name, int encrypt)
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
                 continue;
             snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
-            loopDir(path, encrypt);
+            loopDir1(path, encrypt);
             
             char res[1000],to[1000];
 
@@ -165,6 +183,45 @@ void loopDir(const char *name, int encrypt)
     closedir(dir);
 }
 
+
+void loopDir2(const char *name, int encrypt)
+{
+    DIR *dir;
+    struct dirent *entry;
+
+    if (!(dir = opendir(name)))
+        return;
+
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            char path[1024];
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+            snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+            loopDir2(path, encrypt);
+
+        } else {
+            char res[1000], to[2000], path[1024],filename[100],ext[100];
+            
+            memset(res, 0, sizeof(res));
+            memset(to, 0, sizeof(res));
+
+            snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+          
+            if(encrypt) {
+                splitfile(path);
+            }else{
+                unsplitfile(path);
+            }
+
+        }
+    }
+    closedir(dir);
+}
+
+
+
 void substring(char s[], char sub[], int p, int l) {
    int c = 0;
    
@@ -174,6 +231,44 @@ void substring(char s[], char sub[], int p, int l) {
    }
    sub[c] = '\0';
 }
+
+
+//no2
+
+void splitfile(char* path) {
+    char prefix[strlen(path) + 5];
+    sprintf(prefix, "%s.", path);
+    pid_t child = fork();
+    if (child == 0) execl("/usr/bin/split", "split", "-b", "1024", "-d", "-a", "3", path, prefix, NULL);
+    int status;
+    while (wait(&status) > 0);
+    unlink(path);
+}
+
+void unsplitfile(char* path) {
+    char* last4 = path + strlen(path) - 4;
+    if (strcmp(last4, ".000")) return;
+    last4[0] = '\0';
+    FILE* out = fopen(path, "wb");
+    char buffer[1500];
+    int index = 0;
+    while (1) {
+        char blockname[strlen(path) + 10];
+        sprintf(blockname, "%s.%03d", path, index);
+        FILE* f = fopen(blockname, "rb");
+        if (!f) break;
+        fseek(f, 0L, SEEK_END);
+        int size = ftell(f);
+        rewind(f);
+        fread(buffer, sizeof(char), size, f);
+        fwrite(buffer, sizeof(char), size, out);
+        fclose(f);
+        unlink(blockname);
+        index++;
+    }
+    fclose(out);
+}
+
 
 static  int  xmp_getattr(const char *path, struct stat *stbuf)
 {
@@ -317,7 +412,7 @@ static int xmp_rename(const char *from, const char *to)
         char sub[1000];
         substring(basename(fto), sub, 1, 6);
         if(strcmp(sub, "encv1_") == 0) {
-            loopDir(ffrom,1);
+            loopDir1(ffrom,1);
             logEnc(ffrom,fto,1);
         }
     }
@@ -326,7 +421,7 @@ static int xmp_rename(const char *from, const char *to)
         char sub[1000];
         substring(basename(fto), sub, 1, 6);
         if(strcmp(sub, "encv2_") == 0) {
-            loopDir(ffrom,1);
+            loopDir2(ffrom,1);
             logEnc(ffrom,fto,2);
         }
     }
@@ -336,7 +431,7 @@ static int xmp_rename(const char *from, const char *to)
         substring(basename(ffrom), sub, 1, 6);
         substring(basename(fto), sub2, 1, 6);
         if(!strcmp(sub, "encv1_") && strcmp(sub2, "encv1_"))
-            loopDir(ffrom,0);
+            loopDir1(ffrom,0);
     }
     
 	res = rename(ffrom, fto);
